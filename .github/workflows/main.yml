@@ -1,0 +1,71 @@
+name: Auto Generate Toffee Playlist
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: toffee-playlist-update
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Fetch Python Script from Private Repo
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          SECRET_REPO_NAME: ${{ secrets.SECRET_REPO_NAME }}
+        run: |
+          git clone https://x-access-token:${GH_PAT}@github.com/${SECRET_REPO_NAME}.git private_code
+          cp private_code/scripts/toffee_sm.py .
+          rm -rf private_code
+
+      - name: Run Main Script
+        env:
+          BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
+        run: python toffee_sm.py
+
+      - name: Verify Output Files
+        run: |
+          test -f toffee_playlist.m3u
+          test -f toffee_data.json
+          echo "Files generated successfully"
+
+      - name: Remove Python Script
+        if: always()
+        run: rm -f toffee_sm.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add toffee_playlist.m3u toffee_data.json
+
+          if git diff --cached --quiet; then
+            echo "No changes detected."
+            exit 0
+          fi
+
+          git commit -m "Auto Updated Toffee Playlist: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
