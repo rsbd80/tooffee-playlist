@@ -31,25 +31,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Fetch Python Script from Private Repo
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-          SECRET_REPO_NAME: ${{ secrets.SECRET_REPO_NAME }}
+      - name: Fetch Python Script from Public Repo
         run: |
-          git clone https://x-access-token:${GH_PAT}@github.com/${SECRET_REPO_NAME}.git private_code
+          git clone https://github.com/rsbd80/tooffee-playlist.git private_code
           cp private_code/scripts/toffee_sm.py .
           rm -rf private_code
 
       - name: Run Main Script
         env:
           BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
-        run: python toffee_sm.py
+        run: |
+          python toffee_sm.py
 
       - name: Verify Output Files
         run: |
           test -f toffee_playlist.m3u
           test -f toffee_data.json
-          echo "Files generated successfully"
+          echo "Playlist and JSON files generated successfully."
 
       - name: Remove Python Script
         if: always()
